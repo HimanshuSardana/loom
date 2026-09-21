@@ -1,0 +1,7 @@
+.loom/
+**/.loom/
+examples/src/
+examples/dist/
+dist/
+*.typ
+/loom
