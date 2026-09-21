@@ -1,0 +1,14 @@
+# Fibonacci
+
+We implement Fibonacci.
+
+```python {#fib} {run} {session=python}
+def fib(n):
+    if n <= 1:
+        return n
+    return fib(n-1) + fib(n-2)
+```
+
+```python {#calculate} {run} {session=python} {depends=fib}
+[fib(i) for i in range(10)]
+```

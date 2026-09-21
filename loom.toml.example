@@ -1,0 +1,14 @@
+[project]
+name = "example"
+
+[source]
+main = "docs/main.loom"
+
+[tangle]
+output = "src"
+
+[export.html]
+output = "dist/index.html"
+
+[export.pdf]
+output = "dist/main.pdf"
