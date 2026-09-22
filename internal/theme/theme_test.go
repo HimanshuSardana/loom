@@ -6,17 +6,23 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	for _, name := range []string{"tufte", "dark", "modern"} {
-		th := Get(name)
-		if th.Name != name {
-			t.Fatalf("Get(%q) = %q", name, th.Name)
+	for _, th := range List() {
+		got := Get(th.Name)
+		if got.Name != th.Name {
+			t.Fatalf("Get(%q) = %q", th.Name, got.Name)
 		}
-		if th.CSS == "" || th.TypstPrelude == "" {
-			t.Fatalf("theme %q missing CSS/prelude", name)
+		if got.CSS == "" || got.TypstPrelude == "" {
+			t.Fatalf("theme %q missing CSS/prelude", th.Name)
 		}
-		if !strings.Contains(th.TypstPrelude, "{{TITLE}}") {
-			t.Fatalf("theme %q prelude missing {{TITLE}}", name)
+		if !strings.Contains(got.TypstPrelude, "{{TITLE}}") {
+			t.Fatalf("theme %q prelude missing {{TITLE}}", th.Name)
 		}
+		if !Valid(th.Name) {
+			t.Fatalf("Valid(%q) = false", th.Name)
+		}
+	}
+	if len(List()) < 7 {
+		t.Fatalf("expected at least 7 themes, got %d", len(List()))
 	}
 }
 
