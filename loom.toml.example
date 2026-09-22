@@ -9,6 +9,8 @@ output = "src"
 
 [export.html]
 output = "dist/index.html"
+theme = "modern"
 
 [export.pdf]
 output = "dist/main.pdf"
+theme = "modern"

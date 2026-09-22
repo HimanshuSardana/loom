@@ -19,6 +19,7 @@ import (
 	"github.com/HimanshuSardana/loom/internal/parser"
 	"github.com/HimanshuSardana/loom/internal/runtime"
 	"github.com/HimanshuSardana/loom/internal/tangle"
+	"github.com/HimanshuSardana/loom/internal/theme"
 )
 
 func main() {
@@ -46,6 +47,8 @@ func main() {
 		err = cmdClean(args)
 	case "watch":
 		err = cmdWatch(args)
+	case "themes":
+		err = cmdThemes(args)
 	case "--help", "-h", "help":
 		usage()
 	default:
@@ -67,17 +70,20 @@ Usage:
   loom check <file>
   loom tangle <file> [--out <dir>] [--stdout]
   loom run <file> [--block <name>] [--allow-execution] [--no-cache] [--json]
-  loom export html <file> [--out <path>]
-  loom export pdf <file> [--out <path>]
-  loom build <file> [--allow-execution]
+  loom export html <file> [--out <path>] [--theme <name>]
+  loom export pdf <file> [--out <path>] [--theme <name>]
+  loom build <file> [--allow-execution] [--theme <name>]
   loom clean [<file>]
-  loom watch <file> [--allow-execution]`)
+  loom watch <file> [--allow-execution]
+  loom themes
+
+Themes: tufte, dark, modern (default: modern).`)
 }
 
 // normalizeArgs moves flags before positionals so `loom run file --block x`
 // works as well as `loom run --block x file` (std flag pkg stops at first arg).
 func normalizeArgs(args []string) []string {
-	withVal := map[string]bool{"--out": true, "--block": true, "-out": true, "-block": true}
+	withVal := map[string]bool{"--out": true, "--block": true, "--theme": true, "-out": true, "-block": true, "-theme": true}
 	var flags, pos []string
 	i := 0
 	for i < len(args) {
@@ -356,6 +362,7 @@ func cmdExport(args []string) error {
 	rest := args[1:]
 	fs := flag.NewFlagSet("export", flag.ContinueOnError)
 	out := fs.String("out", "", "output path")
+	themeFlag := fs.String("theme", "", "theme name ("+theme.Names()+")")
 	if err := fs.Parse(normalizeArgs(rest)); err != nil {
 		return err
 	}
@@ -375,10 +382,17 @@ func cmdExport(args []string) error {
 		if dest == "" {
 			dest = cfg.HTML.Output
 		}
+		th := *themeFlag
+		if th == "" {
+			th = cfg.HTML.Theme
+		}
+		if th != "" && !theme.Valid(th) {
+			return fmt.Errorf("loom: unknown theme '%s' (available: %s)", th, theme.Names())
+		}
 		if !filepath.IsAbs(dest) {
 			dest = filepath.Join(filepath.Dir(file), dest)
 		}
-		page := html.Render(doc, results)
+		page := html.Render(doc, results, th)
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
 		}
@@ -401,10 +415,17 @@ func cmdExport(args []string) error {
 		if dest == "" {
 			dest = cfg.PDF.Output
 		}
+		th := *themeFlag
+		if th == "" {
+			th = cfg.PDF.Theme
+		}
+		if th != "" && !theme.Valid(th) {
+			return fmt.Errorf("loom: unknown theme '%s' (available: %s)", th, theme.Names())
+		}
 		if !filepath.IsAbs(dest) {
 			dest = filepath.Join(filepath.Dir(file), dest)
 		}
-		markup := typst.Render(doc, results)
+		markup := typst.Render(doc, results, th)
 		tmp, err := os.CreateTemp("", "loom-*.typ")
 		if err != nil {
 			return err
@@ -438,8 +459,12 @@ func cmdExport(args []string) error {
 func cmdBuild(args []string) error {
 	fs := flag.NewFlagSet("build", flag.ContinueOnError)
 	allow := fs.Bool("allow-execution", false, "allow execution without prompt")
+	themeFlag := fs.String("theme", "", "theme for HTML/PDF export ("+theme.Names()+")")
 	if err := fs.Parse(normalizeArgs(args)); err != nil {
 		return err
+	}
+	if *themeFlag != "" && !theme.Valid(*themeFlag) {
+		return fmt.Errorf("loom: unknown theme '%s' (available: %s)", *themeFlag, theme.Names())
 	}
 	if fs.NArg() < 1 {
 		return fmt.Errorf("usage: loom build <file>")
@@ -468,13 +493,27 @@ func cmdBuild(args []string) error {
 	if err := cmdTangle([]string{file}); err != nil {
 		fmt.Fprintln(os.Stderr, "tangle:", err)
 	}
-	if err := cmdExport([]string{"html", file}); err != nil {
+	exportArgs := func(format string) []string {
+		a := []string{format, file}
+		if *themeFlag != "" {
+			a = append(a, "--theme", *themeFlag)
+		}
+		return a
+	}
+	if err := cmdExport(exportArgs("html")); err != nil {
 		fmt.Fprintln(os.Stderr, "export html:", err)
 	}
-	if err := cmdExport([]string{"pdf", file}); err != nil {
+	if err := cmdExport(exportArgs("pdf")); err != nil {
 		fmt.Fprintln(os.Stderr, "export pdf:", err)
 	}
 	fmt.Println("build complete")
+	return nil
+}
+
+func cmdThemes(args []string) error {
+	for _, th := range theme.List() {
+		fmt.Printf("%s\n    %s\n", th.Name, th.Description)
+	}
 	return nil
 }
 
