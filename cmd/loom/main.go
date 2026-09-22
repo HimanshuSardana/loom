@@ -77,7 +77,7 @@ Usage:
   loom watch <file> [--allow-execution]
   loom themes
 
-Themes: tufte, dark, modern (default: modern).`)
+Themes: ` + theme.Names() + " (default: " + theme.Default + ").")
 }
 
 // normalizeArgs moves flags before positionals so `loom run file --block x`

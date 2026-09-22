@@ -63,7 +63,13 @@ Both HTML and PDF export take `--theme` (also `theme =` under
 
 - `modern` (default) — clean light pages, sans-serif, indigo accents.
 - `tufte` — Tufte-style essay: warm paper, serif body, brick-red accents.
+- `paper` — warm minimal light: cream paper, amber accents, soft green output.
+- `solarized` — Solarized light: cream paper, blue accents, terminal palette.
 - `dark` — dark terminal pages, Iosevka monospace throughout.
+- `dracula` — Dracula official palette: purple accents, pink keywords, green output.
+- `nord` — Nord frost palette: arctic blue-grays, cool frost accents.
+
+Run `loom themes` for the same list.
 
 ```sh
 loom export html arrays.loom --theme dark
