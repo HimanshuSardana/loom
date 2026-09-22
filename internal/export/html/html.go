@@ -12,6 +12,37 @@ import (
 
 func esc(s string) string { return html.EscapeString(s) }
 
+type tocEntry struct {
+	anchor string
+	text   string
+	level  int
+}
+
+// scrollspyJS highlights the TOC entry for the heading nearest the viewport top.
+const scrollspyJS = `<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a[href^="#"]'));
+  if (!links.length) return;
+  var heads = links
+    .map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); })
+    .filter(Boolean);
+  function update() {
+    var y = window.scrollY + 140;
+    var cur = heads[0];
+    for (var i = 0; i < heads.length; i++) {
+      if (heads[i].getBoundingClientRect().top + window.scrollY <= y) cur = heads[i];
+    }
+    links.forEach(function (a) {
+      a.classList.toggle('active', cur && a.getAttribute('href') === '#' + cur.id);
+    });
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('hashchange', update);
+  update();
+})();
+</script>
+`
+
 // Render builds a standalone HTML page. results maps block name -> result.
 // themeName selects a named theme (see internal/theme); "" means default.
 func Render(doc *ast.Document, results map[string]runtime.Result, themeName string) string {
@@ -23,23 +54,30 @@ func Render(doc *ast.Document, results map[string]runtime.Result, themeName stri
 	}
 	sb.WriteString("<!DOCTYPE html>\n<html lang=\"en\" data-theme=\"" + esc(th.Name) + "\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>" + esc(title) + "</title>\n<style>\n")
 	sb.WriteString(th.CSS + "\n")
-	sb.WriteString("</style>\n</head>\n<body class=\"theme-" + esc(th.Name) + "\">\n<article>\n")
-	sb.WriteString("<h1>" + esc(title) + "</h1>\n")
-	// TOC
+	sb.WriteString("</style>\n</head>\n<body class=\"theme-" + esc(th.Name) + "\">\n")
+
 	blocks := doc.Blocks
 	// The document title already renders as the page H1; a leading H1
 	// with identical text would print the title twice.
 	if len(blocks) > 0 && blocks[0].Type == ast.BlockHeading && blocks[0].Level == 1 && blocks[0].Text == doc.Title {
 		blocks = blocks[1:]
 	}
-	sb.WriteString("<nav class=\"toc\"><strong>Contents</strong><ul>\n")
+
+	// Collect TOC entries first so we know whether a sidebar is needed.
+	var toc []tocEntry
 	for _, b := range blocks {
 		if b.Type == ast.BlockHeading && b.Level <= 3 {
-			anchor := anchorOf(b.Text)
-			fmt.Fprintf(&sb, "<li><a href=\"#%s\">%s</a></li>\n", anchor, esc(b.Text))
+			toc = append(toc, tocEntry{anchor: anchorOf(b.Text), text: b.Text, level: b.Level})
 		}
 	}
-	sb.WriteString("</ul></nav>\n")
+
+	pageClass := "page"
+	if len(toc) == 0 {
+		pageClass = "page no-toc"
+	}
+	sb.WriteString("<div class=\"" + pageClass + "\">\n<main class=\"content\">\n<article>\n")
+	sb.WriteString("<h1>" + esc(title) + "</h1>\n")
+
 	for _, b := range blocks {
 		switch b.Type {
 		case ast.BlockHeading:
@@ -58,9 +96,8 @@ func Render(doc *ast.Document, results map[string]runtime.Result, themeName stri
 			if id == "" {
 				id = fmt.Sprintf("block-%d-%d", b.Loc.Start.Line, b.Loc.Start.Column)
 			}
-			fmt.Fprintf(&sb, "<section id=\"block-%s\">\n<div class=\"block-head\">%s</div>\n<pre><code class=\"language-"+esc(b.Language)+"\">"+esc(b.Source)+"</code></pre>\n", esc(id), esc(b.Language))
-			// references
-			// execution output
+			fmt.Fprintf(&sb, "<section id=\"block-%s\">\n<div class=\"block-head\">%s</div>\n<pre><code class=\"language-%s\">%s</code></pre>\n",
+				esc(id), esc(b.Language), esc(b.Language), highlight(b.Source, b.Language))
 			if r, ok := results[b.Name]; ok && b.Name != "" {
 				sb.WriteString("<div class=\"output\">\n<strong>Output</strong>\n")
 				if r.Stdout != "" {
@@ -84,7 +121,21 @@ func Render(doc *ast.Document, results map[string]runtime.Result, themeName stri
 			sb.WriteString("</section>\n")
 		}
 	}
-	sb.WriteString("</article>\n</body>\n</html>\n")
+	sb.WriteString("</article>\n</main>\n")
+
+	if len(toc) > 0 {
+		sb.WriteString("<aside class=\"sidebar\">\n<nav class=\"toc\">\n<div class=\"toc-title\">Contents</div>\n<ul>\n")
+		for _, e := range toc {
+			fmt.Fprintf(&sb, "<li class=\"l%d\"><a href=\"#%s\">%s</a></li>\n", e.level, e.anchor, esc(e.text))
+		}
+		sb.WriteString("</ul>\n</nav>\n</aside>\n")
+	}
+
+	sb.WriteString("</div>\n")
+	if len(toc) > 0 {
+		sb.WriteString(scrollspyJS)
+	}
+	sb.WriteString("</body>\n</html>\n")
 	return sb.String()
 }
 
