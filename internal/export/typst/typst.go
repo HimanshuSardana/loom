@@ -5,6 +5,7 @@ import (
 
 	"github.com/HimanshuSardana/loom/internal/ast"
 	"github.com/HimanshuSardana/loom/internal/runtime"
+	"github.com/HimanshuSardana/loom/internal/theme"
 )
 
 func quote(s string) string {
@@ -13,17 +14,24 @@ func quote(s string) string {
 	return "\"" + s + "\""
 }
 
-// Render generates Typst markup.
-func Render(doc *ast.Document, results map[string]runtime.Result) string {
+// Render generates Typst markup. themeName selects a named theme
+// (see internal/theme); "" means default.
+func Render(doc *ast.Document, results map[string]runtime.Result, themeName string) string {
+	th := theme.Get(themeName)
 	var sb strings.Builder
 	title := doc.Title
 	if title == "" {
 		title = "Loom Document"
 	}
-	sb.WriteString("#set document(title: " + quote(title) + ")\n")
-	sb.WriteString("#set page(margin: 2cm)\n")
+	sb.WriteString(strings.ReplaceAll(th.TypstPrelude, "{{TITLE}}", quote(title)) + "\n")
 	sb.WriteString("= " + typstEsc(title) + "\n\n")
-	for _, b := range doc.Blocks {
+	blocks := doc.Blocks
+	// The document title already renders as the top-level heading; a
+	// leading H1 with identical text would print the title twice.
+	if len(blocks) > 0 && blocks[0].Type == ast.BlockHeading && blocks[0].Level == 1 && blocks[0].Text == doc.Title {
+		blocks = blocks[1:]
+	}
+	for _, b := range blocks {
 		switch b.Type {
 		case ast.BlockHeading:
 			sb.WriteString(strings.Repeat("=", b.Level) + " " + typstEsc(b.Text) + "\n\n")
@@ -35,11 +43,11 @@ func Render(doc *ast.Document, results map[string]runtime.Result) string {
 			}
 			sb.WriteString("\n")
 		case ast.BlockCode:
-			sb.WriteString("#block(fill: luma(245), inset: 8pt, radius: 4pt)[\n")
-			sb.WriteString("#text(size: 8pt, fill: gray)[" + typstEsc(b.Language+blockSuffix(&b)) + "]\n")
-			sb.WriteString("#raw(" + quote(b.Source) + ", lang: " + quote(b.Language) + ")\n]\n\n")
+			sb.WriteString("#block(width: 100%, fill: " + th.TypstCodeFill + ", inset: 8pt, radius: 4pt)[\n")
+			sb.WriteString("#align(right)[#text(size: 8pt, weight: \"bold\", fill: " + th.TypstAccent + ")[" + typstEsc(strings.ToUpper(b.Language)) + "]]\n")
+			sb.WriteString("#raw(" + quote(b.Source) + ", lang: " + quote(b.Language) + ", block: true)\n]\n\n")
 			if r, ok := results[b.Name]; ok && b.Name != "" {
-				sb.WriteString("#block(fill: green.lighten(90%), inset: 8pt, radius: 4pt)[\n*Output*\n")
+				sb.WriteString("#block(width: 100%, fill: " + th.TypstOutputFill + ", inset: 8pt, radius: 4pt)[\n*Output* \\\n")
 				if r.Stdout != "" {
 					sb.WriteString("#raw(" + quote(r.Stdout) + ")\n")
 				}
@@ -56,13 +64,6 @@ func Render(doc *ast.Document, results map[string]runtime.Result) string {
 		}
 	}
 	return sb.String()
-}
-
-func blockSuffix(b *ast.Block) string {
-	if b.Name != "" {
-		return " {# " + b.Name + "}"
-	}
-	return ""
 }
 
 func typstEsc(s string) string {

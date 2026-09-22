@@ -17,10 +17,11 @@ type Config struct {
 
 type outPair struct {
 	Output string
+	Theme  string
 }
 
 func defaults() Config {
-	return Config{TangleOut: "src", HTML: outPair{Output: "dist/index.html"}, PDF: outPair{Output: "dist/main.pdf"}}
+	return Config{TangleOut: "src", HTML: outPair{Output: "dist/index.html", Theme: "modern"}, PDF: outPair{Output: "dist/main.pdf", Theme: "modern"}}
 }
 
 // Load searches for loom.toml next to loomFile or cwd.
@@ -76,9 +77,15 @@ func parseToml(src string, cfg *Config) {
 			if k == "output" {
 				cfg.HTML.Output = v
 			}
+			if k == "theme" {
+				cfg.HTML.Theme = v
+			}
 		case "export.pdf":
 			if k == "output" {
 				cfg.PDF.Output = v
+			}
+			if k == "theme" {
+				cfg.PDF.Theme = v
 			}
 		}
 	}

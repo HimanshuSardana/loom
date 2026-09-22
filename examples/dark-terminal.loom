@@ -1,0 +1,38 @@
+# midnight build
+
+a field log from the machine room. everything below ran at 00:47.
+
+## recon
+
+```bash {#recon} {run} {session=ops}
+uname -s -r
+uptime
+```
+
+## checksum sweep
+
+hash every loom doc in this directory, sorted, so we notice drift.
+
+```bash {#sweep} {run} {session=ops}
+sha256sum *.loom | sort
+```
+
+## prime sieve
+
+when the network is quiet, burn CPU on something honest.
+
+```python {#sieve} {run} {session=py-ops}
+def primes(n):
+    sieve = [True] * (n + 1)
+    return [i for i, p in enumerate(sieve) if p and i > 1
+            and not any(i % d == 0 for d in range(2, int(i ** 0.5) + 1))]
+
+print(primes(50))
+```
+
+## checklist
+
+- recon clean
+- checksums recorded
+- sieve nominal
+- lights out
