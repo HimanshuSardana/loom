@@ -168,6 +168,7 @@ func (e *Engine) Run(doc *ast.Document, only []string) ([]runtime.Result, error)
 	}
 	// group session history
 	sessionHist := map[string]string{} // session -> accumulated code
+	sessionLang := map[string]string{} // session -> language (sessions are single-language)
 	// cache invalidation: if a dep changed (executed fresh), dependents must re-run
 	dirty := map[string]bool{}
 	var results []runtime.Result
@@ -187,6 +188,7 @@ func (e *Engine) Run(doc *ast.Document, only []string) ([]runtime.Result, error)
 					// still need to extend session history for downstream blocks
 					if b.Session != "" && !b.Isolated {
 						sessionHist[b.Session] += "\n" + b.Source
+						sessionLang[b.Session] = strings.ToLower(b.Language)
 					}
 					hit.Block = b.Name
 					results = append(results, hit)
@@ -203,6 +205,10 @@ func (e *Engine) Run(doc *ast.Document, only []string) ([]runtime.Result, error)
 		}
 		code := b.Source
 		if b.Session != "" && !b.Isolated {
+			if lang, seen := sessionLang[b.Session]; seen && lang != strings.ToLower(b.Language) {
+				return results, fmt.Errorf("%s:%d:%d\nblock: %s\nruntime: %s\n\nsession '%s' already holds '%s' code; sessions are single-language (use a different session name)", e.LoomFile, b.Loc.Start.Line, b.Loc.Start.Column, b.Name, b.Language, b.Session, lang)
+			}
+			sessionLang[b.Session] = strings.ToLower(b.Language)
 			if hist, ok := sessionHist[b.Session]; ok && hist != "" {
 				// Only python/js/shell benefit; concatenate history + current
 				// Execute combined to share state, but per-block stdout separation

@@ -30,8 +30,15 @@ func pythonWrapper(userCode string) string {
 	}
 	body := strings.Join(lines[:end], "\n")
 	last := ""
+	lastRaw := ""
 	if end > 0 {
-		last = strings.TrimSpace(lines[end-1])
+		lastRaw = lines[end-1]
+		last = strings.TrimSpace(lastRaw)
+	}
+	// An indented final line belongs to a compound statement (for/if/with/
+	// try body); never treat it as a standalone value expression.
+	if lastRaw != "" && (lastRaw[0] == ' ' || lastRaw[0] == '\t') {
+		return body + "\n"
 	}
 	// Heuristic: treat last line as expression if single-line and not assignment/import/def/class/return etc.
 	isExpr := last != "" && !strings.Contains(last, "\n") &&
@@ -110,6 +117,9 @@ func (r PythonRuntime) Execute(code string, workdir string) Result {
 	if idx := strings.LastIndex(so, valueMarker); idx >= 0 {
 		rest := strings.TrimSpace(so[idx+len(valueMarker):])
 		val = strings.TrimSpace(strings.SplitN(rest, "\n", 2)[0])
+		if val == "None" {
+			val = "" // print(...) etc. return None; not a meaningful value
+		}
 		so = strings.TrimSpace(strings.Replace(so[:idx], "\n\n", "\n", -1))
 		so = strings.TrimSuffix(strings.TrimSpace(so), "\n")
 		if so != "" {

@@ -36,6 +36,8 @@ loom run fibonacci.loom --block calculate --allow-execution
 loom tangle fibonacci.loom            # uses {file=} targets + [tangle] output
 loom export html fibonacci.loom
 loom export pdf fibonacci.loom        # needs `typst`
+loom export html fibonacci.loom --theme tufte   # tufte | dark | modern
+loom themes                             # list available themes
 loom build fibonacci.loom --allow-execution
 loom watch fibonacci.loom --allow-execution
 loom clean fibonacci.loom
@@ -54,12 +56,26 @@ confirmation on a TTY; pass `--allow-execution` for CI/non-interactive use.
 - `{session=name}` shares state (default: `default:<lang>`); `{isolated}` runs fresh
 - `{file="path"}` tangle target; `{depends=a,b}` explicit deps
 
+## Themes
+
+Both HTML and PDF export take `--theme` (also `theme =` under
+`[export.html]` / `[export.pdf]` in `loom.toml`):
+
+- `modern` (default) — clean light pages, sans-serif, indigo accents.
+- `tufte` — Tufte-style essay: warm paper, serif body, brick-red accents.
+- `dark` — dark terminal pages, Iosevka monospace throughout.
+
+```sh
+loom export html arrays.loom --theme dark
+loom export pdf arrays.loom --theme tufte
+```
+
 ## Neovim
 
 ```lua
 -- lazy.nvim
 { "HimanshuSardana/loom", config = function()
-  require("loom").setup({ executable = "loom" })
+  require("loom").setup({ executable = "loom", theme = "modern" })
 end }
 ```
 

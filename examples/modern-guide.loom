@@ -1,0 +1,26 @@
+# Getting Started with Loom
+
+Welcome! This guide walks you through the core workflow in five minutes.
+
+## 1. Write a document
+
+A `.loom` file is Markdown with named code blocks. Each block can carry
+options like `{run}`, `{session=name}`, or `{file=path}`.
+
+## 2. Run a block
+
+Mark a block `{run}` and execute it. Blocks in the same session share state.
+
+```python {#setup} {run} {session=guide}
+items = ["apples", "bananas", "cherries"]
+```
+
+```python {#report} {run} {session=guide} {depends=setup}
+print(f"We have {len(items)} items: " + ", ".join(items))
+```
+
+## 3. Next steps
+
+- `loom check` validates names, references, and dependencies.
+- `loom tangle` extracts `{file=}` blocks into real source files.
+- `loom export html --theme modern` produces this page.

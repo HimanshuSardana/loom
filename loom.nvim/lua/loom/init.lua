@@ -1,6 +1,6 @@
 local M = {}
 
-M.config = { executable = "loom", auto_diag = true }
+M.config = { executable = "loom", auto_diag = true, theme = nil }
 local ns = vim.api.nvim_create_namespace("loom_output")
 local diag_ns = vim.api.nvim_create_namespace("loom_diag")
 
@@ -141,16 +141,23 @@ function M.dispatch(cmd, _)
     run_cli({ exe, "tangle", f }, { cb = function(c, o, e)
       if c ~= 0 then vim.notify(e, vim.log.levels.ERROR) else vim.notify(o, vim.log.levels.INFO) end
     end })
-  elseif cmd == "LoomExportHtml" then
-    run_cli({ exe, "export", "html", f }, { cb = function(c, o, e)
+  local function export_args(format)
+    local a = { exe, "export", format, f }
+    if M.config.theme then
+      vim.list_extend(a, { "--theme", M.config.theme })
+    end
+    return a
+  end
+  if cmd == "LoomExportHtml" then
+    run_cli(export_args("html"), { cb = function(c, o, e)
       if c ~= 0 then vim.notify(e, vim.log.levels.ERROR) else vim.notify(o, vim.log.levels.INFO) end
     end })
   elseif cmd == "LoomExportPdf" then
-    run_cli({ exe, "export", "pdf", f }, { cb = function(c, o, e)
+    run_cli(export_args("pdf"), { cb = function(c, o, e)
       if c ~= 0 then vim.notify(e, vim.log.levels.ERROR) else vim.notify(o, vim.log.levels.INFO) end
     end })
   elseif cmd == "LoomPreview" then
-    run_cli({ exe, "export", "html", f }, { cb = function(c, o, e)
+    run_cli(export_args("html"), { cb = function(c, o, e)
       if c ~= 0 then vim.notify(e, vim.log.levels.ERROR) end
     end })
   elseif cmd == "LoomClean" then
